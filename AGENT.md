@@ -1378,7 +1378,7 @@ Unseen-symbol test
 
 ## 15.1 구현 순서
 
-### Baseline 1: Gradient Boosting
+### Baseline 1: PyTorch Stage-wise Gradient Boosting
 
 최근 60봉을 통계 요약해 학습한다.
 
@@ -1394,13 +1394,17 @@ slope
 first_to_last_change
 ```
 
-모델 후보:
+첫 구현은 PyTorch 기반 얕은 weak learner를 stage-wise additive 방식으로 학습한다.
+각 stage는 이전 logit을 고정하고 binary cross-entropy를 줄이는 새 learner를 추가한다.
 
 ```text
-LightGBM
-XGBoost
-CatBoost
+Direct: P(TP first within 10m)
+Fill: P(fill)
+Conditional: P(TP first within 10m | fill)
+Two-stage: P(fill) × P(TP first within 10m | fill)
 ```
+
+LightGBM, XGBoost, CatBoost는 이후 비교 후보이며 첫 baseline에는 사용하지 않는다.
 
 목적:
 
@@ -1675,7 +1679,7 @@ project/
 │  ├─ 01_data_audit.ipynb
 │  ├─ 02_feature_audit.ipynb
 │  ├─ 03_label_audit.ipynb
-│  ├─ 04_baseline.ipynb
+│  ├─ 04_gradient_boosting_baseline.ipynb
 │  └─ 05_model_evaluation.ipynb
 └─ scripts/
    ├─ audit_data.py
@@ -1748,12 +1752,12 @@ reports/data_audit.md
 초기 baseline은 확정 샘플을 우선 사용한다. ambiguous 샘플을 임의로
 positive 또는 negative로 강제 변환하지 않는다.
 
-## Phase 4. Gradient Boosting baseline
+## Phase 4. PyTorch Stage-wise Gradient Boosting baseline
 
 구현:
 
 1. 확정 라벨과 60봉 요약 feature 연결
-2. boosting baseline 학습
+2. direct와 two-stage Torch boosting baseline 학습
 3. validation calibration
 4. validation threshold 선정
 5. 고정 threshold로 test 평가

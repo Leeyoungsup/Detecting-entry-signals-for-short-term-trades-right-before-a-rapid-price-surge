@@ -1,14 +1,13 @@
-# US 1분봉 급등 직전 진입 신호 Baseline
+# US 1분봉 초단타 진입·청산 가치 모델
 
-현재 우선 실험은 미국 주식 1분봉의 **하락봉 직후 3분 급등 신호**를 탐지한다.
-판단 시점 `t`가 하락봉(`close_t < open_t`)일 때 `last_ask_t`를 진입 기준으로 두고,
-정확히 다음 3개 연속 1분봉(`t+1..t+3`) 중 하나라도 `last_bid`가 +3% 이상이면
-양성으로 라벨링한다.
+현재 primary V8은 희소한 “3분 +3% 사건” 분류 대신, 매 시각 종목별
+**1·2·3·5분 실행가능 수익 표면을 예측하고 상대 순위를 매기는 진입 모델**과
+진입 후 다음 1분을 더 보유할 가치를 예측하는 청산 모델을 결합한다.
 
-모델 입력은 60개 1분 OHLC에서 만든 90개 가격 특징으로 제한한다. 거래량, 거래대금,
-VWAP, 호가 및 체결 흐름은 입력하지 않는다. `last_ask/last_bid`는 시장가 또는 즉시체결
-가정에 가까운 **미래 라벨 생성에만** 사용한다. 이 V5 모델은 수익모델이 아니라
-3분 +3% 사건의 이진 탐지기이며, 수수료·손절·TIMEOUT 기반 수익성은 별도 평가 대상이다.
+모델 입력은 최근 15개 1분 OHLC에서 만든 12개 순서형 특징과 현재 시점의 24개
+OHLC context로 제한한다. 거래량, 거래대금, VWAP, 호가·체결 흐름은 입력하지 않는다.
+`last_ask_t`와 미래 `last_bid`는 라벨 및 시장가 즉시체결 백테스트에만 사용한다.
+V5~V7은 비교·실패 진단 baseline으로 보존한다.
 
 ## 데이터와 현재 split
 
@@ -20,6 +19,7 @@ VWAP, 호가 및 체결 흐름은 입력하지 않는다. `last_ask/last_bid`는
 - Reduced V2 최종 Test: 아직 없음. 새로운 미래 날짜 필요
 - Fixed V3 실험: Train 2026-07-07~15, Test 2026-07-16~17
 - Quote Surge V5/V6: Train 2026-07-07~15, Test 2026-07-16~17, Validation 없음
+- Value Ranking V8: Train 2026-07-07~15, OOF 2026-07-10~15, 진단 Test 2026-07-16~17
 - 환경: conda `urban`, PyTorch
 
 원본은 읽기 전용이며 파생 artifact는 `processed`, `models`, `backtests`에 분리해
@@ -38,6 +38,10 @@ VWAP, 호가 및 체결 흐름은 입력하지 않는다. `last_ask/last_bid`는
 9. `09_immediate_fill_rebaseline.ipynb`: 10분 즉시체결 3-outcome PnL baseline
 10. `10_quote_surge_3m_binary.ipynb`: 하락봉 급등 탐지와 weighted 40-epoch V6 비교
 11. `11_event_centric_multihorizon_entry.ipynb`: 모든 봉·최근 10봉 sequence·다중 horizon V7
+12. `12_forward_return_surface.ipynb`: current ask→future bid 1·2·3·5분 수익 표면
+13. `13_cross_sectional_entry_ranker.ipynb`: 날짜 OOF 진입 효용·종목 순위 모델
+14. `14_exit_value_model.ipynb`: 보유 중 다음 1분 continuation value 모델
+15. `15_end_to_end_walk_forward_backtest.ipynb`: OOF 정책 선택과 순차 수익률 백테스트
 
 현재 V2 feature는 학습 날짜가 적을 때 생기는 요일 암기를 막기 위해
 `day_of_week_sin/cos`를 제외한다. 1분 간격 window는 서로 겹치므로 행 수를 독립
@@ -58,6 +62,22 @@ final fit 7/7~14, fixed test 7/15~17
 이는 지정가 V1/V2 및 09의 10분 PnL 비교 설명이며 현재 탐지 목표는 10의 V5/V6다.
 
 ## 현재 상태
+
+V8 데이터셋은 9개 세션 48,991개 판단 시점이다. 무조건 진입의 3분 순수익률은 평균
+`-0.777%`, 중앙값 `-0.701%`로 스프레드·수수료를 넘기 어렵다. 진입 랭커는 4개
+날짜 walk-forward OOF에서 epoch 20을 선택했고, OOF 효용 Spearman `0.204`, 시각별
+cross-sectional rank IC `0.094`를 기록했다. 매 시각 상위 후보의 효용 lift는
+`+0.122%p`였지만 평균 효용 자체는 `-0.633%`로 음수였다.
+
+청산 continuation 모델은 epoch 16을 선택했다. OOF 다음 1분 수익률 Spearman은
+`0.083`; HOLD 구간의 다음 1분 평균은 `+0.010%`, SELL 구간은 `-0.024%`였다.
+방향 분리는 약하게 존재하지만 날짜별 안정성이 충분하지 않다.
+
+OOF 4일 모두 거래가 존재하도록 제한해 선택한 정책은 `top_k=1`, 진입 효용
+`q50>=-0.5%`, `q10>=-2%`다. OOF 765건 평균 순수익률은 `-0.499%`, 양수 날짜는
+0/4였고, 진단 Test 943건도 평균 `-0.393%`, 양수 날짜 0/2였다. 따라서 V8 배포
+상태는 `FAIL_OOF`다. 7/16~17은 이미 반복 사용한 non-pristine 날짜이므로 Test는
+선택에 사용하지 않았고 최종 승인 근거도 아니다.
 
 현재 Quote Surge V5는 하락봉 후보 22,700개를 사용한다. 시간순 Train 7일은
 18,874개(`positive=883`, 4.68%), Test 2일은 3,826개(`positive=124`, 3.24%)다.
@@ -164,7 +184,11 @@ for notebook in notebooks/01_data_universe_audit.ipynb \
   notebooks/08_fixed_train_test_80_20.ipynb \
   notebooks/09_immediate_fill_rebaseline.ipynb \
   notebooks/10_quote_surge_3m_binary.ipynb \
-  notebooks/11_event_centric_multihorizon_entry.ipynb; do
+  notebooks/11_event_centric_multihorizon_entry.ipynb \
+  notebooks/12_forward_return_surface.ipynb \
+  notebooks/13_cross_sectional_entry_ranker.ipynb \
+  notebooks/14_exit_value_model.ipynb \
+  notebooks/15_end_to_end_walk_forward_backtest.ipynb; do
   /home/user/anaconda3/envs/urban/bin/jupyter nbconvert \
     --to notebook --execute --inplace "$notebook" \
     --ExecutePreprocessor.kernel_name=urban \
@@ -183,5 +207,7 @@ Validation 없는 Fixed V3는 `configs/fixed_train_test_80_20.yaml`,
 `configs/quote_surge_3m_binary.yaml`에 있다.
 Event-centric V7은 `src/event_centric_entry.py`, 설정은
 `configs/event_centric_entry.yaml`에 있다.
+현재 Value Ranking V8은 `src/value_ranking_strategy.py`, 설정은
+`configs/value_ranking_strategy.yaml`에 있다.
 
 세부 모델·라벨·수수료·백테스트 원칙은 `AGENT.md`를 따른다.

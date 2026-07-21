@@ -28,3 +28,31 @@
 - 기존 실험 전략을 전제로 하지 않고 처음부터 설계한다.
 - 한 단계씩 검토한 뒤 확정된 내용만 이 문서에 추가한다.
 - 실험 결과를 확인하기 전에 목표나 평가 기준을 임의로 변경하지 않는다.
+
+## 현재 전처리 기준
+
+- 모델 원본 입력은 `open`, `high`, `low`, `close`만 사용한다.
+- 같은 종목의 정확히 연속된 60개 1분봉을 한 입력 sequence로 사용한다.
+- 판단 시점은 종료된 `t`봉 직후이며 진입가격 proxy는 `open[t+1]`이다.
+- 1·3·5분 안의 +3% 도달 여부와 MFE·MAE를 함께 생성한다.
+- 입력 또는 미래 라벨 구간에 1분 초과 gap이 있으면 샘플을 만들지 않는다.
+- 전처리 artifact는 `../../results/preprocessing`에 저장한다.
+- scaling과 날짜 split은 아직 적용하지 않는다.
+- `t+1 low~high` 랜덤 진입은 입력이 아닌 label 민감도 실험으로만 사용하며,
+  primary 진입 proxy는 `t+1 open`으로 유지한다.
+
+## 현재 데이터 split
+
+- Train: 2026-07-07~2026-07-15, 7개 거래일
+- Test: 2026-07-16~2026-07-17, 2개 거래일
+- Train 내부 모델 선택은 첫 3일 이후 4개 expanding walk-forward OOF fold를 사용한다.
+- scaler와 sampling 기준은 각 fold의 과거 Train 날짜만으로 계산한다.
+- Test는 모델·에폭·threshold 선택에 사용하지 않는다.
+- 기존에 확인한 Test 날짜이므로 최종 pristine 검증에는 새로운 미래 거래일이 필요하다.
+
+## 모델 후보
+
+- SOTA 주 후보: Small TimeMixer++
+- 필수 compact baseline: ModernTCN
+- hard-label 분류 reference: MultiRocket
+- 세 모델은 동일한 날짜 split에서 비교하며 논문의 SOTA 주장을 그대로 성능으로 간주하지 않는다.

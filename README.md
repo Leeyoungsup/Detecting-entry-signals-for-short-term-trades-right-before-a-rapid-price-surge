@@ -5,7 +5,7 @@
 
 ## 현재 단계
 
-현재는 모델이나 라벨을 만들기 전의 **데이터 읽기 및 기본 확인 단계**다.
+현재는 **연속 60봉 OHLC 전처리와 +3% 라벨 생성 단계**다.
 
 구현된 확인 항목:
 
@@ -19,6 +19,9 @@
 
 데이터 간격이 발견되어도 현재 단계에서는 행을 제거하거나 보간하지 않는다.
 
+두 번째 노트북에서는 gap을 보간하지 않고 연속된 구간만 사용해 60봉 sequence를 만든다.
+`t+1 open` 진입 기준으로 미래 1·3·5분 +3% 도달 여부와 MFE·MAE를 생성한다.
+
 ## 경로
 
 ```text
@@ -31,12 +34,15 @@
 
 conda `urban` 환경에서 다음 명령을 실행한다.
 
-첫 단계는 `notebooks/01_data_read_check.ipynb`에서 진행한다. conda `urban` 커널을
-선택하고 셀을 위에서부터 실행한다. 이 노트북은 원본을 읽고 화면에 요약만 출력하며
-전처리 결과 파일은 아직 저장하지 않는다.
+노트북에서 conda `urban` 커널을 선택하고 번호 순서대로 실행한다.
 
 ## 구조
 
 ```text
 notebooks/01_data_read_check.ipynb   데이터 경로, 적재, 기본 확인
+notebooks/02_ohlc_60m_preprocessing.ipynb   60봉 특징과 +3%·MFE·MAE 라벨 생성
+notebooks/03_random_tick_entry_sensitivity.ipynb   t+1 low~high 랜덤 진입 라벨 비교
+notebooks/04_date_split_and_model_research.ipynb   날짜 split 확정과 모델 조사
 ```
+
+02의 artifact는 `../../results/preprocessing/ohlc_60m_tp3pct_v1_*`에 저장된다.

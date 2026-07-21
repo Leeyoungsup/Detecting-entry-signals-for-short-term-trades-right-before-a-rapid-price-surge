@@ -1,0 +1,71 @@
+project:
+  seed: 42
+  environment: urban
+  horizon_minutes: 10
+
+data:
+  root: ../../data/stock_data
+  tabular_artifact: processed/baseline_tabular_10m_tp5_sl3_price_v2.parquet
+  feature_schema: processed/baseline_tabular_10m_tp5_sl3_price_v2_schema.json
+  labels_artifact: processed/labels_dual_path_10m_tp5_sl3_v2.parquet
+  development_sessions:
+    - session_2026-07-07
+    - session_2026-07-08
+    - session_2026-07-09
+    - session_2026-07-10
+    - session_2026-07-13
+    - session_2026-07-14
+  test_sessions:
+    - session_2026-07-15
+    - session_2026-07-16
+    - session_2026-07-17
+
+walk_forward:
+  minimum_prior_sessions: 3
+  inner_validation: latest_prior_session
+  training_stride_minutes: 5
+  scaler_clip: 20.0
+
+model:
+  classes:
+    - NO_FILL
+    - TP
+    - SL
+    - TIMEOUT
+  hidden_dims: [128, 64]
+  dropout: 0.15
+  batch_size: 1024
+  learning_rate: 0.0005
+  weight_decay: 0.0003
+  max_epochs: 40
+  early_stopping_patience: 6
+  min_delta: 0.00001
+  temperature_grid_min: 0.5
+  temperature_grid_max: 3.0
+  temperature_grid_steps: 101
+
+expected_value:
+  price_tier_boundary: 1.0
+  minimum_tier_outcome_samples: 30
+  tier_payoff_shrinkage_samples: 100
+
+backtest:
+  initial_capital_usd: 10000.0
+  order_notional_usd: 1000.0
+  max_concurrent_positions: 5
+  order_ttl_minutes: 1
+  max_holding_minutes: 10
+  threshold_quantile_min: 0.0
+  threshold_quantile_max: 0.95
+  threshold_candidates: 40
+  minimum_predicted_expected_return: 0.0
+  minimum_signals: 30
+  minimum_filled_trades: 20
+  minimum_oof_sessions: 3
+  minimum_filled_trades_per_session: 5
+  minimum_profitable_oof_session_share: 1.0
+  minimum_test_sessions: 3
+  minimum_profitable_test_session_share: 0.6666666667
+
+artifacts:
+  version: walk_forward_multiclass_ev_v1

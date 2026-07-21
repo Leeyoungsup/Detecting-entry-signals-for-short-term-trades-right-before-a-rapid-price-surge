@@ -1,0 +1,55 @@
+project:
+  seed: 42
+  environment: urban
+
+data:
+  root: ../../data/stock_data
+  raw_glob: raw/session_*/*_enriched.csv
+  feature_rows_artifact: processed/feature_rows_price_v2.parquet
+  sequence_index_artifact: processed/sequence_index_price_v2.parquet
+  selected_feature_schema: processed/reduced_walk_forward_multiclass_ev_v2_feature_schema.json
+  train_sessions:
+    - session_2026-07-07
+    - session_2026-07-08
+    - session_2026-07-09
+    - session_2026-07-10
+    - session_2026-07-13
+    - session_2026-07-14
+    - session_2026-07-15
+  test_sessions:
+    - session_2026-07-16
+    - session_2026-07-17
+  test_is_pristine: false
+
+label:
+  version: bearish_last_ask_to_last_bid_3m_up3_v1
+  candidate_candle: bearish
+  entry_quote: last_ask
+  target_quote: last_bid
+  horizon_minutes: 3
+  target_return: 0.03
+  require_consecutive_minutes: true
+  require_valid_quotes: true
+
+sampling:
+  sampling_method: event_bucket
+  bucket_minutes: 3
+  equal_session_weights: true
+  scaler_clip: 20.0
+
+model:
+  hidden_dims: [32]
+  dropout: 0.20
+  batch_size: 512
+  learning_rate: 0.0005
+  weight_decay: 0.001
+  fixed_epochs: 40
+  positive_weight: balanced
+  positive_weight_multiplier: 1.5
+
+decision:
+  method: fixed_train_score_top_5pct
+  train_score_quantile: 0.95
+
+artifacts:
+  version: quote_surge_bearish_3m_up3_binary_weighted40_v6

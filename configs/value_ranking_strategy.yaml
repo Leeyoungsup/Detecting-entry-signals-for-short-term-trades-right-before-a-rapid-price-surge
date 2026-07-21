@@ -1,0 +1,128 @@
+project:
+  seed: 42
+  environment: urban
+
+data:
+  root: ../../data/stock_data
+  feature_rows_artifact: processed/feature_rows_price_v2.parquet
+  sequence_index_artifact: processed/sequence_index_price_v2.parquet
+  train_sessions:
+    - session_2026-07-07
+    - session_2026-07-08
+    - session_2026-07-09
+    - session_2026-07-10
+    - session_2026-07-13
+    - session_2026-07-14
+    - session_2026-07-15
+  test_sessions:
+    - session_2026-07-16
+    - session_2026-07-17
+  test_is_pristine: false
+
+surface:
+  version: executable_return_surface_1_2_3_5m_v1
+  horizons_minutes: [1, 2, 3, 5]
+  maximum_horizon_minutes: 5
+  estimated_round_trip_cost_rate: 0.0022
+  utility:
+    maximum_net_return_weight: 0.50
+    terminal_3m_net_return_weight: 0.50
+    downside_penalty: 0.50
+    time_to_max_penalty_per_minute: 0.0002
+
+features:
+  sequence_length: 15
+  sequence:
+    - log_return_1
+    - body_return
+    - range_return
+    - upper_wick
+    - lower_wick
+    - close_location
+    - gap_from_prev_close
+    - body_to_range_ratio
+    - distance_from_high_5
+    - distance_from_low_5
+    - rolling_std_return_3
+    - atr_pct_5
+  context:
+    - log_return_3
+    - log_return_5
+    - log_return_10
+    - log_return_20
+    - close_to_sma5
+    - close_to_sma10
+    - close_to_sma20
+    - close_to_sma60
+    - rolling_std_return_5
+    - rolling_std_return_10
+    - rolling_std_return_20
+    - rolling_std_return_60
+    - atr_pct_5
+    - atr_pct_14
+    - distance_from_high_10
+    - distance_from_high_20
+    - distance_from_high_60
+    - distance_from_low_10
+    - distance_from_low_20
+    - distance_from_low_60
+    - range_position_10
+    - range_position_20
+    - range_position_60
+    - is_bearish
+  scaler_clip: 12.0
+
+entry_model:
+  conv_channels: 24
+  context_hidden: 16
+  joint_hidden: 32
+  dropout: 0.20
+  batch_size: 512
+  learning_rate: 0.0005
+  weight_decay: 0.001
+  candidate_epochs: [8, 12, 16, 20]
+  minimum_oof_prior_sessions: 3
+  training_timestamp_stride_minutes: 2
+  rank_loss_weight: 0.50
+  surface_loss_weight: 0.20
+  target_scale: 100.0
+  target_clip_min: -15.0
+  target_clip_max: 20.0
+
+exit_model:
+  conv_channels: 16
+  context_hidden: 12
+  position_hidden: 8
+  joint_hidden: 24
+  dropout: 0.20
+  batch_size: 512
+  learning_rate: 0.0005
+  weight_decay: 0.001
+  candidate_epochs: [8, 12, 16]
+  minimum_oof_prior_sessions: 3
+  target_scale: 100.0
+  target_clip_min: -10.0
+  target_clip_max: 10.0
+  hold_minimum_q50_return: 0.0
+  hold_minimum_q10_return: -0.01
+
+fees:
+  order_notional_usd: 1000.0
+  buy_commission_rate: 0.001
+  sell_commission_rate: 0.001
+  sec_fee_rate: 0.0000206
+  taf_per_share: 0.000195
+  taf_max_per_trade: 9.79
+  sell_slippage_pct: 0.0
+
+policy:
+  top_k_candidates: [1, 2]
+  minimum_predicted_q50: [0.0, 0.002, 0.005]
+  minimum_predicted_q10: [-0.02, -0.01]
+  minimum_oof_trades: 20
+  max_holding_minutes: 5
+  max_concurrent_positions: 5
+  initial_capital_usd: 10000.0
+
+artifacts:
+  version: cross_sectional_value_timing_v8

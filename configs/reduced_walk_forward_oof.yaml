@@ -1,0 +1,147 @@
+project:
+  seed: 42
+  environment: urban
+  horizon_minutes: 10
+
+data:
+  root: ../../data/stock_data
+  tabular_artifact: processed/baseline_tabular_10m_tp5_sl3_price_v2.parquet
+  feature_schema: processed/baseline_tabular_10m_tp5_sl3_price_v2_schema.json
+  labels_artifact: processed/labels_dual_path_10m_tp5_sl3_v2.parquet
+  development_sessions:
+    - session_2026-07-07
+    - session_2026-07-08
+    - session_2026-07-09
+    - session_2026-07-10
+    - session_2026-07-13
+    - session_2026-07-14
+  # These dates informed the overfitting redesign, so they are reference-only.
+  reference_sessions:
+    - session_2026-07-15
+    - session_2026-07-16
+    - session_2026-07-17
+
+walk_forward:
+  minimum_prior_sessions: 3
+  inner_validation: latest_prior_session
+  sampling_method: ten_minute_bucket
+  bucket_minutes: 10
+  equal_session_weights: true
+  scaler_clip: 20.0
+
+model:
+  classes: [NO_FILL, TP, SL, TIMEOUT]
+  hidden_dims: [32]
+  dropout: 0.20
+  batch_size: 512
+  learning_rate: 0.0005
+  weight_decay: 0.001
+  max_epochs: 15
+  early_stopping_patience: 4
+  min_delta: 0.00001
+  temperature_grid_min: 0.5
+  temperature_grid_max: 3.0
+  temperature_grid_steps: 101
+
+feature_selection:
+  base_groups: [absolute_price, candle, volatility, price_position]
+  restore_order: [compact_trend, compact_momentum, compact_time]
+  maximum_features: 100
+  min_return_spearman_improvement: 0.005
+  max_worst_session_spearman_drop: 0.020
+  max_multiclass_logloss_increase: 0.010
+  groups:
+    absolute_price:
+      last: [log_close_price]
+    candle:
+      last:
+        - open_rel_prev_close
+        - high_rel_prev_close
+        - low_rel_prev_close
+        - close_rel_prev_close
+        - log_return_1
+        - log_return_2
+        - log_return_3
+        - log_return_5
+        - log_return_10
+        - log_return_20
+        - body_return
+        - range_return
+        - upper_wick
+        - lower_wick
+        - close_location
+        - gap_from_prev_close
+        - body_to_range_ratio
+        - upper_wick_to_range
+        - lower_wick_to_range
+        - is_bullish
+        - is_bearish
+      mean60: [log_return_1, log_return_5, log_return_10, body_return, range_return, upper_wick, lower_wick, close_location]
+      std60: [log_return_1, log_return_5, body_return, range_return, upper_wick, lower_wick]
+      delta5: [log_return_1, log_return_5, body_return, range_return, close_location]
+    volatility:
+      last:
+        - rolling_std_return_3
+        - rolling_std_return_5
+        - rolling_std_return_10
+        - rolling_std_return_20
+        - rolling_std_return_60
+        - atr_pct_5
+        - atr_pct_10
+        - atr_pct_14
+        - atr_pct_20
+        - bb_width_20
+      mean60: [rolling_std_return_5, rolling_std_return_20, atr_pct_14, bb_width_20]
+      delta5: [rolling_std_return_5, atr_pct_14, bb_width_20]
+    price_position:
+      last:
+        - distance_from_high_5
+        - distance_from_high_10
+        - distance_from_high_20
+        - distance_from_high_60
+        - distance_from_low_5
+        - distance_from_low_10
+        - distance_from_low_20
+        - distance_from_low_60
+        - range_position_5
+        - range_position_10
+        - range_position_20
+        - range_position_60
+        - breakout_high_5
+        - breakout_high_20
+        - breakdown_low_5
+        - breakdown_low_20
+      mean60: [distance_from_high_20, distance_from_low_20, range_position_5, range_position_20]
+      delta5: [distance_from_high_20, distance_from_low_20, range_position_5, range_position_20]
+    compact_trend:
+      last: [close_to_sma5, close_to_sma20, close_to_ema9, close_to_ema20, ema9_to_ema20, sma5_slope_3, ema9_slope_3, ema20_slope_5]
+    compact_momentum:
+      last: [roc_3, roc_5, roc_10, rsi_6, rsi_14, stochastic_k_14]
+    compact_time:
+      last: [is_premarket, is_regular, is_afterhours, is_opening_5m, minute_of_day_sin, minute_of_day_cos]
+
+expected_value:
+  price_tier_boundary: 1.0
+  minimum_tier_outcome_samples: 30
+  tier_payoff_shrinkage_samples: 100
+
+backtest:
+  initial_capital_usd: 10000.0
+  order_notional_usd: 1000.0
+  max_concurrent_positions: 5
+  order_ttl_minutes: 1
+  max_holding_minutes: 10
+  threshold_quantile_min: 0.0
+  threshold_quantile_max: 0.95
+  threshold_candidates: 40
+  minimum_predicted_expected_return: 0.0
+  minimum_signals: 30
+  minimum_filled_trades: 20
+  minimum_oof_sessions: 3
+  minimum_filled_trades_per_session: 5
+  minimum_profitable_oof_session_share: 1.0
+  minimum_test_sessions: 3
+  minimum_profitable_test_session_share: 0.6666666667
+
+artifacts:
+  version: reduced_walk_forward_multiclass_ev_v2

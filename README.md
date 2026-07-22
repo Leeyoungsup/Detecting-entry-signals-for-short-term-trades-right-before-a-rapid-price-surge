@@ -1,48 +1,28 @@
-# US 1분봉 초단타 매수·매도 타이밍 AI
+# US 1분봉 초단타 스캘핑 AI
 
-미국 주식 1분봉 데이터로 초단타 매수·매도 타이밍을 판단하는 AI 모델을 개발한다.
-세부 목표와 경로는 `AGENT.md`에 기록한다.
+미국 주식 1분봉으로 완료된 `t`봉 직후 진입했을 때, 앞으로 1~5분 안에 비용 차감 후
+3% 이상 수익을 낼 수 있는 시점을 예측한다.
 
-## 현재 단계
+## 새 기준
 
-현재는 **연속 60봉 OHLC 전처리와 +3% 라벨 생성 단계**다.
+- 입력: 연속된 완성 1분봉 30개
+- 원본 feature: OHLC, 거래량, 거래 건수, VWAP
+- 파생 feature: EMA, 당일 VWAP, 당일 전고점·전저점, 상대 거래량 등
+- 판단: `t`봉 종료 직후
+- 진입 proxy: `first_ask[t+1]`
+- positive: 미래 1~5분 executable bid에서 비용 차감 후 +3% 이상 도달
+- 다음 하락봉이나 TP/SL 4-class 조건은 사용하지 않음
 
-구현된 확인 항목:
-
-- `*_enriched.csv` 파일 및 세션 탐색
-- 파일별 컬럼 스키마 확인
-- `symbol`, `timestamp_utc`, OHLC dtype 정리
-- 필수값 결측 확인
-- OHLC 가격 관계 확인
-- `symbol + timestamp_utc` 중복 확인
-- 1분 초과 데이터 간격 집계
-
-데이터 간격이 발견되어도 현재 단계에서는 행을 제거하거나 보간하지 않는다.
-
-두 번째 노트북에서는 gap을 보간하지 않고 연속된 구간만 사용해 60봉 sequence를 만든다.
-`t+1 open` 진입 기준으로 미래 1·3·5분 +3% 도달 여부와 MFE·MAE를 생성한다.
+시간 정렬과 label의 상세 기준은 `AGENT.md`를 따른다.
 
 ## 경로
 
 ```text
-데이터:  ../../data/stock_data
-모델:    ../../model
-결과:    ../../results
+원본 데이터: ../../data/stock_data/raw
+모델:        ../../model
+결과:        ../../results
+가상환경:    conda urban
 ```
 
-## 실행
-
-conda `urban` 환경에서 다음 명령을 실행한다.
-
-노트북에서 conda `urban` 커널을 선택하고 번호 순서대로 실행한다.
-
-## 구조
-
-```text
-notebooks/01_data_read_check.ipynb   데이터 경로, 적재, 기본 확인
-notebooks/02_ohlc_60m_preprocessing.ipynb   60봉 특징과 +3%·MFE·MAE 라벨 생성
-notebooks/03_random_tick_entry_sensitivity.ipynb   t+1 low~high 랜덤 진입 라벨 비교
-notebooks/04_date_split_and_model_research.ipynb   날짜 split 확정과 모델 조사
-```
-
-02의 artifact는 `../../results/preprocessing/ohlc_60m_tp3pct_v1_*`에 저장된다.
+현재 기존 실험은 모두 정리된 상태다. 다음 작업은 새
+`01_scalping_ohlcv_data_audit.ipynb`부터 시작한다.
